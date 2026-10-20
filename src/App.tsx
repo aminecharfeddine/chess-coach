@@ -317,6 +317,7 @@ export default function App() {
   }, [outcome, report]);
 
   // Lecture automatique des coups
+  const autoplayReady = testMode || view === 0 || !!reviews[view - 1];
   useEffect(() => {
     if (!autoplay) return;
     if (view >= moves.length) {
@@ -324,11 +325,10 @@ export default function App() {
       return;
     }
     // Attend le commentaire du coup affiché (sauf mode test) pour laisser le temps de le lire
-    const ready = testMode || view === 0 || !!reviews[view - 1];
-    if (!ready) return;
+    if (!autoplayReady) return;
     const t = setTimeout(() => setView((v) => Math.min(v + 1, moves.length)), testMode ? 900 : 1800);
     return () => clearTimeout(t);
-  }, [autoplay, view, moves.length, reviews, testMode]);
+  }, [autoplay, view, moves.length, autoplayReady, testMode]);
 
   const openSaved = (g: SavedGame) => {
     opponentRef.current?.stop();
