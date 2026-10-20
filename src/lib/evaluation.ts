@@ -47,7 +47,7 @@ export function evalToNumber(e: Evaluation): number {
   return e.cp ?? 0;
 }
 
-/** Probabilité de gain des Blancs (0–100), formule utilisée par Lichess. */
+/** Probabilité de gain des Blancs (0 à 100), formule utilisée par Lichess. */
 export function winPercent(e: Evaluation): number {
   if (e.mated) return e.mated === 'w' ? 0 : 100;
   if (e.draw) return 50;
@@ -69,7 +69,7 @@ export function formatEval(e: Evaluation | null | undefined): string {
   return p > 0 ? `+${fmt(p)}` : `−${fmt(-p)}`;
 }
 
-/** Fraction blanche de la barre (0–1). */
+/** Fraction blanche de la barre (0 à 1). */
 export function barFraction(e: Evaluation | null | undefined): number {
   if (!e) return 0.5;
   if (e.mated) return e.mated === 'w' ? 0 : 1;

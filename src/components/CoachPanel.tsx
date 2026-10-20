@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { CLASS_INFO, type MoveReview } from '../lib/coach';
 import { formatEval } from '../lib/evaluation';
 import { toFrenchSan } from '../lib/chessUtils';
+import { IconUndo } from './Icons';
 
 interface Props {
   review: MoveReview | null;
@@ -62,8 +63,9 @@ function PauseBox({
         </div>
       )}
       <div className="pausebox-actions">
-        <button className="btn ghost sm" onClick={onTakeback}>
-          ↶ Reprendre
+        <button className="btn ghost sm with-icon" onClick={onTakeback}>
+          <IconUndo width={15} height={15} />
+          Reprendre
         </button>
         {countdown?.deadline && (
           <button className="btn ghost sm" onClick={onHold}>
@@ -200,7 +202,11 @@ export function CoachPanel(p: Props) {
         />
       )}
       {body}
-      {p.pending && !p.testMode && <div className="analysis-progress">Analyse Stockfish en cours…</div>}
+      {p.pending && !p.testMode && (
+        <div className="analysis-progress">
+          <span className="spinner" aria-hidden /> Stockfish analyse…
+        </div>
+      )}
     </section>
   );
 }

@@ -11,6 +11,21 @@ import { EvalBar } from './components/EvalBar';
 import { CoachPanel } from './components/CoachPanel';
 import { MoveList } from './components/MoveList';
 import { PromotionPicker } from './components/PromotionPicker';
+import { PlayerStrip } from './components/PlayerStrip';
+import {
+  IconChart,
+  IconFirst,
+  IconFlag,
+  IconFlip,
+  IconGear,
+  IconLast,
+  IconNext,
+  IconPause,
+  IconPlay,
+  IconPlus,
+  IconPrev,
+  IconUndo,
+} from './components/Icons';
 import { NewGameDialog, type GameSettings } from './components/NewGameDialog';
 import { ReviewDialog } from './components/ReviewDialog';
 import { PreferencesDialog } from './components/PreferencesDialog';
@@ -29,6 +44,7 @@ import {
 } from './lib/themes';
 
 const EVAL_GUTTER = 42; // largeur barre d'évaluation + espace
+const STRIP_H = 104; // deux bandeaux joueurs (haut + bas) avec leurs marges
 const SETTINGS_KEY = 'eldrachess.settings';
 const TESTMODE_KEY = 'eldrachess.testMode';
 
@@ -475,7 +491,7 @@ export default function App() {
     const ro = new ResizeObserver(() => {
       const r = el.getBoundingClientRect();
       const h = window.innerWidth <= 1000 ? Infinity : r.height;
-      setBoardWidth(Math.max(240, Math.floor(Math.min(r.width - EVAL_GUTTER, h))));
+      setBoardWidth(Math.max(240, Math.floor(Math.min(r.width - EVAL_GUTTER, h - STRIP_H))));
     });
     ro.observe(el);
     return () => ro.disconnect();
@@ -572,6 +588,26 @@ export default function App() {
   const viewEval = analyses[viewFen]?.eval;
   const isPlayerTurn = started && atTip && !gameOver && game.turn() === playerColor;
 
+  const pieceFolder = findPieces(prefs.pieces).folder ?? 'cburnett';
+  const strip = (color: 'w' | 'b') => {
+    const engine = color === aiColor;
+    return (
+      <div className="strip-slot" style={{ width: boardWidth, marginLeft: EVAL_GUTTER }}>
+        <PlayerStrip
+          name={engine ? `Stockfish ${settings.elo}` : profile.name || 'Joueur'}
+          detail={engine ? eloLabel(settings.elo) : started ? 'Vous' : 'En attente'}
+          color={color}
+          fen={viewFen}
+          isEngine={engine}
+          initial={(profile.name.trim().charAt(0) || 'J').toUpperCase()}
+          active={started && !gameOver && atTip && game.turn() === color}
+          thinking={engine && aiThinking && !countdown && !awaitingAnalysis}
+          folder={pieceFolder}
+        />
+      </div>
+    );
+  };
+
   return (
     <div className="app">
       <header className="topbar">
@@ -581,12 +617,6 @@ export default function App() {
           </svg>
           <span>Eldrachess</span>
         </div>
-        {started && (
-          <div className="opponent-chip" title="Niveau de l’adversaire">
-            <span className={`dot ${aiColor}`} aria-hidden />
-            Stockfish {settings.elo} <span className="muted">{eloLabel(settings.elo)}</span>
-          </div>
-        )}
         <div className="topbar-actions">
           <label className="switch" title="Raccourci : T">
             <input type="checkbox" checked={!testMode} onChange={() => setTestMode((t) => !t)} />
@@ -599,26 +629,22 @@ export default function App() {
             <span className="avatar sm" aria-hidden>
               {profile.name.trim().charAt(0).toUpperCase() || 'J'}
             </span>
-            Profil
+            <span className="btn-label">Profil</span>
           </button>
           <button className="icon-btn" onClick={() => setShowPrefs(true)} aria-label="Apparence et rythme" title="Apparence et rythme">
-            <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden>
-              <path
-                d="M12 15.5a3.5 3.5 0 100-7 3.5 3.5 0 000 7zm7.4-2.5a7.6 7.6 0 000-2l2-1.6-2-3.4-2.4 1a7.4 7.4 0 00-1.7-1L15 3.5h-4l-.4 2.5a7.4 7.4 0 00-1.7 1l-2.4-1-2 3.4 2 1.6a7.6 7.6 0 000 2l-2 1.6 2 3.4 2.4-1a7.4 7.4 0 001.7 1l.4 2.5h4l.4-2.5a7.4 7.4 0 001.7-1l2.4 1 2-3.4z"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.6"
-                strokeLinejoin="round"
-              />
-            </svg>
+            <IconGear />
           </button>
           {started && moves.length > 0 && (
-            <button className="btn ghost" onClick={() => setShowReview(true)}>
-              Bilan
+            <button className="btn ghost with-icon" onClick={() => setShowReview(true)}>
+              <IconChart width={16} height={16} />
+              <span className="btn-label">Bilan</span>
             </button>
           )}
-          <button className="btn primary" onClick={() => setShowNewGame(true)}>
-            Nouvelle partie
+          <button className="btn primary with-icon" onClick={() => setShowNewGame(true)}>
+            <IconPlus width={16} height={16} />
+            <span>
+              Nouvelle<span className="btn-label"> partie</span>
+            </span>
           </button>
         </div>
       </header>
@@ -626,6 +652,8 @@ export default function App() {
       <main className="layout">
         <div className="board-col">
           <div className="board-wrap" ref={boardWrap}>
+            <div className="board-stack">
+            {strip(orientation === 'white' ? 'b' : 'w')}
             <div className="board-inner">
               <div className="evalbar-slot" style={{ height: boardWidth }}>
                 <EvalBar
@@ -687,15 +715,17 @@ export default function App() {
                 )}
               </div>
             </div>
+            {strip(orientation === 'white' ? 'w' : 'b')}
+            </div>
           </div>
 
           <nav className="controls" style={{ maxWidth: boardWidth + EVAL_GUTTER }} aria-label="Navigation dans les coups">
-            <div className="nav-group">
+            <div className="nav-group pill">
               <button className="icon-btn" onClick={() => goto(0)} disabled={view === 0} aria-label="Début de partie">
-                ⏮
+                <IconFirst />
               </button>
               <button className="icon-btn" onClick={() => goto(view - 1)} disabled={view === 0} aria-label="Coup précédent">
-                ◀
+                <IconPrev />
               </button>
               <span className="ply-counter">
                 {view}/{moves.length}
@@ -710,33 +740,41 @@ export default function App() {
                 aria-label={autoplay ? 'Arrêter la lecture' : 'Lecture automatique'}
                 title={autoplay ? 'Arrêter la lecture' : 'Lecture automatique'}
               >
-                {autoplay ? '❚❚' : '⏵'}
+                {autoplay ? <IconPause /> : <IconPlay />}
               </button>
               <button className="icon-btn" onClick={() => goto(view + 1)} disabled={atTip} aria-label="Coup suivant">
-                ▶
+                <IconNext />
               </button>
               <button className="icon-btn" onClick={() => goto(moves.length)} disabled={atTip} aria-label="Position actuelle">
-                ⏭
+                <IconLast />
               </button>
             </div>
-            <div className="nav-group">
+            <div className="nav-group pill">
               <button
-                className="btn ghost sm"
+                className="icon-btn"
                 onClick={takeback}
                 disabled={!started || !moves.some((m) => m.color === playerColor)}
-                title="Annule votre dernier coup et la réponse de l’adversaire"
+                aria-label="Reprendre mon dernier coup"
+                title="Reprendre mon dernier coup"
               >
-                ↶ Reprendre
-              </button>
-              <button className="btn ghost sm" onClick={() => setFlipped((f) => !f)} title="Raccourci : F">
-                Retourner
+                <IconUndo />
               </button>
               <button
-                className="btn ghost sm danger"
+                className="icon-btn"
+                onClick={() => setFlipped((f) => !f)}
+                aria-label="Retourner l’échiquier"
+                title="Retourner l’échiquier (F)"
+              >
+                <IconFlip />
+              </button>
+              <button
+                className="icon-btn danger"
                 onClick={() => setResigned(true)}
                 disabled={!started || !!gameOver || moves.length < 1}
+                aria-label="Abandonner"
+                title="Abandonner"
               >
-                Abandonner
+                <IconFlag />
               </button>
             </div>
           </nav>
@@ -779,7 +817,17 @@ export default function App() {
             onRelease={() => releaseRef.current?.()}
             onHold={() => holdRef.current?.()}
           />
-          <MoveList moves={moves} reviews={reviews} viewPly={view} testMode={testMode} onSelect={goto} />
+          <section className="moves-card" aria-label="Coups joués">
+            <header className="moves-head">
+              <h2>Coups</h2>
+              {started && moves.length > 0 && (
+                <span className="muted small">
+                  {Math.ceil(moves.length / 2)} coup{moves.length > 2 ? 's' : ''}
+                </span>
+              )}
+            </header>
+            <MoveList moves={moves} reviews={reviews} viewPly={view} testMode={testMode} onSelect={goto} />
+          </section>
           {gameOver && (
             <div className="gameover">
               <strong>{gameOver}</strong>

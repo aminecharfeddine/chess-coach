@@ -8,9 +8,9 @@ export interface GameSettings {
 }
 
 export const DEPTHS = [
-  { depth: 12, label: 'Rapide', hint: 'Profondeur 12 — idéal sur mobile' },
-  { depth: 16, label: 'Standard', hint: 'Profondeur 16 — bon compromis' },
-  { depth: 20, label: 'Profonde', hint: 'Profondeur 20 — plus lent, plus précis' },
+  { depth: 12, label: 'Rapide', hint: 'Profondeur 12, idéal sur mobile' },
+  { depth: 16, label: 'Standard', hint: 'Profondeur 16, bon compromis' },
+  { depth: 20, label: 'Profonde', hint: 'Profondeur 20, plus lent mais plus précis' },
 ];
 
 interface Props {

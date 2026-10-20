@@ -40,7 +40,7 @@ export function ProfileDialog({ profile, onChange, onOpenGame, onClose }: Props)
   const pct = (n: number) => (s.games ? (n / s.games) * 100 : 0);
   const avgAcc = s.accuracyGames ? Math.round(s.accuracySum / s.accuracyGames) : null;
   const totalMoves = ORDER.reduce((a, k) => a + s.counts[k], 0);
-  const perGame = (k: Classification) => (s.accuracyGames ? (s.counts[k] / s.accuracyGames).toFixed(1).replace('.', ',') : '—');
+  const perGame = (k: Classification) => (s.accuracyGames ? (s.counts[k] / s.accuracyGames).toFixed(1).replace('.', ',') : '-');
   const trend = [...profile.games].reverse().filter((g) => g.accuracy !== null);
 
   const importFile = async (f: File) => {
@@ -90,7 +90,7 @@ export function ProfileDialog({ profile, onChange, onOpenGame, onClose }: Props)
           <>
             <div className="acc-grid three">
               <div className="acc">
-                <span className="acc-num">{avgAcc === null ? '—' : `${avgAcc} %`}</span>
+                <span className="acc-num">{avgAcc === null ? '-' : `${avgAcc} %`}</span>
                 <span>Précision moyenne</span>
               </div>
               <div className="acc">
@@ -144,7 +144,7 @@ export function ProfileDialog({ profile, onChange, onOpenGame, onClose }: Props)
                         {CLASS_INFO[c].label}
                       </td>
                       <td>{perGame(c)}</td>
-                      <td>{totalMoves ? `${Math.round((s.counts[c] / totalMoves) * 100)} %` : '—'}</td>
+                      <td>{totalMoves ? `${Math.round((s.counts[c] / totalMoves) * 100)} %` : '-'}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -200,7 +200,7 @@ export function ProfileDialog({ profile, onChange, onOpenGame, onClose }: Props)
                       </span>
                     </span>
                     <span className="game-acc">
-                      {g.accuracy === null ? '—' : `${Math.round(g.accuracy)} %`}
+                      {g.accuracy === null ? '-' : `${Math.round(g.accuracy)} %`}
                       {g.counts && g.counts.blunder > 0 && (
                         <span className="small" style={{ color: CLASS_INFO.blunder.color }}>
                           {g.counts.blunder} gaffe{g.counts.blunder > 1 ? 's' : ''}

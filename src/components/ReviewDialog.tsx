@@ -21,7 +21,7 @@ const moveLabel = (r: MoveReview) =>
   `${Math.floor(r.ply / 2) + 1}${r.color === 'w' ? '.' : '…'} ${toFrenchSan(r.san)}`;
 
 export function ReviewDialog({ report, reviews, result, playerColor, elo, pending, onJump, onClose, onNewGame }: Props) {
-  const acc = (v: number | null) => (v === null ? '—' : `${Math.round(v)} %`);
+  const acc = (v: number | null) => (v === null ? '-' : `${Math.round(v)} %`);
 
   return (
     <div className="overlay" role="dialog" aria-modal="true" aria-labelledby="rv-title" onClick={onClose}>
@@ -29,7 +29,7 @@ export function ReviewDialog({ report, reviews, result, playerColor, elo, pendin
         <header className="review-head">
           <div>
             <h2 id="rv-title">Bilan de la partie</h2>
-            <p className="muted">{result ?? 'Partie en cours'} — adversaire {elo} Elo</p>
+            <p className="muted">{result ?? 'Partie en cours'} Adversaire : Stockfish {elo}.</p>
           </div>
           <button className="icon-btn" onClick={onClose} aria-label="Fermer le bilan">
             ✕
