@@ -46,6 +46,22 @@ function badgeImage(color: string, symbol: string) {
   return `url("data:image/svg+xml,${encodeURIComponent(svg)}")`;
 }
 
+/** Cases accessibles par la pièce en `sq`, même si ce n'est pas à son camp de jouer. */
+function movesFrom(fen: string, sq: Square): Square[] {
+  const c = new Chess(fen);
+  const piece = c.get(sq);
+  if (!piece) return [];
+  if (piece.color === c.turn()) return c.moves({ square: sq, verbose: true }).map((m) => m.to);
+  const parts = fen.split(' ');
+  parts[1] = piece.color;
+  parts[3] = '-';
+  try {
+    return new Chess(parts.join(' ')).moves({ square: sq, verbose: true }).map((m) => m.to);
+  } catch {
+    return [];
+  }
+}
+
 export default function App() {
   const [settings, setSettings] = useState<GameSettings>(loadSettings);
   const [playerColor, setPlayerColor] = useState<'w' | 'b'>('w');
@@ -371,16 +387,21 @@ export default function App() {
     return () => ro.disconnect();
   }, []);
 
-  const legalTargets = useMemo(() => {
-    if (!selected) return [];
-    return new Chess(viewFen).moves({ square: selected, verbose: true }).map((m) => m.to);
-  }, [selected, viewFen]);
+  // Case dont on montre les coups possibles : pièce sélectionnée, sinon pièce survolée
+  const [hover, setHover] = useState<Square | null>(null);
+  const hintSquare = selected ?? (prefs.hoverHints && !promotion ? hover : null);
+  const hintPiece = hintSquare ? new Chess(viewFen).get(hintSquare) : undefined;
+  const hintIsMine = !!hintPiece && hintPiece.color === playerColor;
+  const hintTargets = useMemo(
+    () => (hintSquare ? movesFrom(viewFen, hintSquare) : []),
+    [hintSquare, viewFen],
+  );
+  const legalTargets = selected && hintIsMine ? hintTargets : [];
 
   const onSquareClick = (sq: Square) => {
-    if (!canMoveHere) return;
-    const c = new Chess(viewFen);
-    const piece = c.get(sq);
-    if (selected && legalTargets.includes(sq)) {
+    if (!started) return;
+    const piece = new Chess(viewFen).get(sq);
+    if (selected && canMoveHere && legalTargets.includes(sq)) {
       if (isPromotion(selected, sq)) {
         setPromotion({ from: selected, to: sq });
         return;
@@ -388,7 +409,8 @@ export default function App() {
       playMove(selected, sq);
       return;
     }
-    if (piece && piece.color === playerColor) setSelected(sq === selected ? null : sq);
+    // Toute pièce (y compris adverse) peut être sélectionnée pour voir ses coups
+    if (piece) setSelected(sq === selected ? null : sq);
     else setSelected(null);
   };
 
@@ -414,13 +436,18 @@ export default function App() {
       .find((s) => s && s.type === 'k' && s.color === viewTurn);
     if (king) squareStyles[king.square] = { ...(squareStyles[king.square] ?? {}), background: 'radial-gradient(circle, rgba(229,72,77,.85) 0%, rgba(229,72,77,.35) 45%, transparent 75%)' };
   }
-  if (selected) {
-    squareStyles[selected] = { background: 'var(--hl-select)' };
+  if (hintSquare && hintPiece) {
+    if (selected) squareStyles[hintSquare] = { background: 'var(--hl-select)' };
     const c = new Chess(viewFen);
-    legalTargets.forEach((t) => {
-      squareStyles[t] = c.get(t)
-        ? { background: 'radial-gradient(circle, transparent 58%, rgba(20,30,25,.32) 60%)' }
-        : { background: 'radial-gradient(circle, rgba(20,30,25,.3) 22%, transparent 24%)' };
+    // Vos pièces : points sombres ; pièces adverses : points rouges (menaces)
+    const ink = hintIsMine ? 'rgba(20,30,25,.34)' : 'rgba(214,52,58,.55)';
+    hintTargets.forEach((t) => {
+      squareStyles[t] = {
+        ...(squareStyles[t] ?? {}),
+        background: c.get(t)
+          ? `radial-gradient(circle, transparent 58%, ${ink} 60%)`
+          : `radial-gradient(circle, ${ink} 22%, transparent 24%)`,
+      };
     });
   }
 
@@ -510,6 +537,9 @@ export default function App() {
                     return playMove(from, to, isPromotion(from, to) ? promo : undefined);
                   }}
                   onSquareClick={onSquareClick}
+                  onMouseOverSquare={(sq) => setHover(new Chess(viewFen).get(sq) ? sq : null)}
+                  onMouseOutSquare={() => setHover(null)}
+                  onPieceDragBegin={(_piece, sq) => setSelected(sq)}
                   onPromotionPieceSelect={(piece) => {
                     if (promotion && piece) {
                       const ok = playMove(promotion.from, promotion.to, piece[1].toLowerCase());

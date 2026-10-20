@@ -129,9 +129,11 @@ export interface Preferences {
   pieces: string;
   /** Temps de lecture de l'analyse de votre coup avant la réponse de l'IA */
   pause: PausePref;
+  /** Montrer les coups possibles au survol d'une pièce (en plus du clic) */
+  hoverHints: boolean;
 }
 
-export const DEFAULT_PREFS: Preferences = { ui: 'club', board: 'olive', pieces: 'cburnett', pause: 3 };
+export const DEFAULT_PREFS: Preferences = { ui: 'club', board: 'olive', pieces: 'cburnett', pause: 3, hoverHints: true };
 
 const PREFS_KEY = 'eldrachess.prefs';
 

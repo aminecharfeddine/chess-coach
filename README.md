@@ -8,6 +8,7 @@ Application web d’entraînement aux échecs : jouez contre Stockfish au niveau
 - **Échiquier interactif** : glisser-déposer ou clic-clic, promotion, navigation dans les coups (boutons ou ← → Début Fin), reprise du dernier coup, et possibilité de rejouer depuis n’importe quelle position passée (nouvelle suite).
 - **Barre d’évaluation** à gauche, animée après chaque coup, avec la valeur numérique (+1,5, −0,8, M3…).
 - **Entraîneur** à droite : classe chaque coup (meilleur, excellent, bon, imprécision, mauvais coup, gaffe), explique pourquoi (pièce en prise, tactique manquée, mat concédé ou manqué, roi affaibli, perte positionnelle…) et propose la meilleure alternative avec sa variante et une flèche sur l’échiquier. Il signale aussi les erreurs de l’adversaire à exploiter.
+- **Coups possibles** : survolez ou cliquez une pièce (la vôtre ou celle de l’adversaire) pour voir où elle peut aller ; points rouges pour les pièces adverses.
 - **Temps de lecture** : après votre coup, l’IA attend que l’analyse s’affiche, puis 3 s, 6 s ou votre clic (réglable). Pendant ce temps : reprendre le coup, mettre en pause ou jouer tout de suite (Espace).
 - **Thèmes** (bouton ⚙) : 4 thèmes d’interface (Club, Nuit, Acajou, Craie clair), 7 échiquiers et 6 jeux de pièces, mémorisés dans le navigateur.
 - **Mode test** (interrupteur ou touche T) : masque instantanément évaluation, conseils et annotations ; l’analyse continue en arrière-plan.

@@ -118,6 +118,22 @@ export function PreferencesDialog({ prefs, onChange, onClose }: Props) {
         </fieldset>
 
         <fieldset>
+          <legend>Coups possibles d’une pièce</legend>
+          <div className="segmented">
+            <button className={prefs.hoverHints ? 'on' : ''} onClick={() => set('hoverHints', true)}>
+              Au survol et au clic
+            </button>
+            <button className={!prefs.hoverHints ? 'on' : ''} onClick={() => set('hoverHints', false)}>
+              Au clic seulement
+            </button>
+          </div>
+          <p className="muted small">
+            Points sombres : cases où votre pièce peut aller. Points rouges : cases où une pièce adverse peut aller (ses prises
+            comprises).
+          </p>
+        </fieldset>
+
+        <fieldset>
           <legend>Temps pour lire l’analyse de votre coup</legend>
           <div className="segmented">
             {PAUSE_OPTIONS.map((o) => (
