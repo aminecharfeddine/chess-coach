@@ -12,6 +12,18 @@ import { CoachPanel } from './components/CoachPanel';
 import { MoveList } from './components/MoveList';
 import { NewGameDialog, type GameSettings } from './components/NewGameDialog';
 import { ReviewDialog } from './components/ReviewDialog';
+import { PreferencesDialog } from './components/PreferencesDialog';
+import {
+  PIECE_CODES,
+  applyUiTheme,
+  findBoard,
+  findPieces,
+  loadPrefs,
+  pieceImgStyle,
+  pieceUrl,
+  savePrefs,
+  type Preferences,
+} from './lib/themes';
 
 const EVAL_GUTTER = 42; // largeur barre d'évaluation + espace
 const SETTINGS_KEY = 'eldrachess.settings';
@@ -27,7 +39,6 @@ function loadSettings(): GameSettings {
   return { elo: 1200, color: 'w', depth: 16 };
 }
 
-const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 /** Petite pastille de classification dessinée dans le coin de la case d'arrivée. */
 function badgeImage(color: string, symbol: string) {
@@ -58,6 +69,11 @@ export default function App() {
   const [promotion, setPromotion] = useState<{ from: Square; to: Square } | null>(null);
   const [showBest, setShowBest] = useState(true);
   const [pending, setPending] = useState(0);
+  const [prefs, setPrefs] = useState<Preferences>(loadPrefs);
+  const [showPrefs, setShowPrefs] = useState(false);
+  const [countdown, setCountdown] = useState<{ deadline: number | null; total: number } | null>(null);
+  const releaseRef = useRef<(() => void) | null>(null);
+  const holdRef = useRef<(() => void) | null>(null);
   const reviewShownFor = useRef<number>(-1);
   const gameId = useRef(0);
 
@@ -86,6 +102,29 @@ export default function App() {
       /* ignore */
     }
   }, [testMode]);
+
+  // --- Thèmes ---
+  useEffect(() => {
+    savePrefs(prefs);
+    applyUiTheme(prefs.ui);
+    const b = findBoard(prefs.board);
+    const root = document.documentElement.style;
+    root.setProperty('--sq-light', b.light);
+    root.setProperty('--sq-dark', b.dark);
+    root.setProperty('--hl-last', b.highlight);
+  }, [prefs]);
+
+  const customPieces = useMemo(() => {
+    const folder = findPieces(prefs.pieces).folder;
+    if (!folder) return undefined;
+    const set: Record<string, (a: { squareWidth: number }) => JSX.Element> = {};
+    PIECE_CODES.forEach((code) => {
+      set[code] = ({ squareWidth }) => (
+        <img src={pieceUrl(folder, code)} style={pieceImgStyle(squareWidth)} alt="" draggable={false} />
+      );
+    });
+    return set;
+  }, [prefs.pieces]);
 
   // --- État de la partie ---
   const game = useMemo(() => {
@@ -127,25 +166,73 @@ export default function App() {
     a.prioritize(viewFen);
   }, [view, viewFen, moves]);
 
+  // --- Revues des coups ---
+  const reviews: (MoveReview | null)[] = useMemo(
+    () =>
+      moves.map((m, i) => {
+        const before = analyses[m.before];
+        const after = analyses[m.after];
+        if (!before || !after) return null;
+        return reviewMove(i, m, before, after, m.color === playerColor);
+      }),
+    [moves, analyses, playerColor],
+  );
+  const report = useMemo(() => buildReport(reviews, playerColor), [reviews, playerColor]);
+  const currentReview = view > 0 ? reviews[view - 1] : null;
+
   // --- Coup de l'IA ---
+  // Après un coup du joueur (conseils actifs), l'IA attend que ce coup soit analysé,
+  // puis laisse un temps de lecture (réglable) pendant lequel on peut reprendre son coup.
+  const tipMove = moves[moves.length - 1];
+  const lastIsPlayer = !!tipMove && tipMove.color === playerColor;
+  const lastReviewReady = lastIsPlayer && !!reviews[moves.length - 1];
+  const needPause = lastIsPlayer && !testMode && prefs.pause !== 0;
+  const aiToMove = started && !gameOver && game.turn() === aiColor;
+  const awaitingAnalysis = aiToMove && needPause && !lastReviewReady;
+
   useEffect(() => {
-    if (!started || gameOver || game.turn() !== aiColor) return;
+    if (!aiToMove || awaitingAnalysis) return;
     const opponent = opponentRef.current;
     if (!opponent) return;
     let cancelled = false;
+    let timer: number | undefined;
     const fen = tipFen;
-    const t0 = performance.now();
+
+    const release = new Promise<void>((resolve) => {
+      const done = () => {
+        if (timer) clearTimeout(timer);
+        releaseRef.current = null;
+        holdRef.current = null;
+        setCountdown(null);
+        resolve();
+      };
+      releaseRef.current = done;
+      if (!needPause) {
+        timer = window.setTimeout(done, 450); // rythme naturel
+        return;
+      }
+      if (prefs.pause === 'manual') {
+        setCountdown({ deadline: null, total: 0 });
+      } else {
+        const ms = prefs.pause * 1000;
+        setCountdown({ deadline: Date.now() + ms, total: ms });
+        timer = window.setTimeout(done, ms);
+      }
+      holdRef.current = () => {
+        if (timer) clearTimeout(timer);
+        timer = undefined;
+        setCountdown({ deadline: null, total: 0 });
+      };
+    });
+
+    // Le moteur réfléchit pendant le temps de lecture
     setAiThinking(true);
-    opponent
-      .pickMove(fen, settings.elo)
-      .then(async (uci) => {
-        const elapsed = performance.now() - t0;
-        if (elapsed < 450) await sleep(450 - elapsed); // rythme naturel
+    Promise.all([opponent.pickMove(fen, settings.elo), release])
+      .then(([uci]) => {
         if (cancelled || !uci) return;
-        const c = new Chess(fen);
         let m: Move;
         try {
-          m = c.move(parseUci(uci));
+          m = new Chess(fen).move(parseUci(uci));
         } catch {
           return;
         }
@@ -161,24 +248,14 @@ export default function App() {
       });
     return () => {
       cancelled = true;
+      if (timer) clearTimeout(timer);
+      releaseRef.current = null;
+      holdRef.current = null;
+      setCountdown(null);
       opponent.stop();
       setAiThinking(false);
     };
-  }, [started, gameOver, game, aiColor, tipFen, settings.elo]);
-
-  // --- Revues des coups ---
-  const reviews: (MoveReview | null)[] = useMemo(
-    () =>
-      moves.map((m, i) => {
-        const before = analyses[m.before];
-        const after = analyses[m.after];
-        if (!before || !after) return null;
-        return reviewMove(i, m, before, after, m.color === playerColor);
-      }),
-    [moves, analyses, playerColor],
-  );
-  const report = useMemo(() => buildReport(reviews, playerColor), [reviews, playerColor]);
-  const currentReview = view > 0 ? reviews[view - 1] : null;
+  }, [aiToMove, awaitingAnalysis, tipFen, settings.elo, needPause, prefs.pause]);
 
   // Ouvre le bilan automatiquement à la fin de la partie (une fois l'analyse terminée)
   useEffect(() => {
@@ -262,7 +339,7 @@ export default function App() {
   // Raccourcis clavier
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (showNewGame || (e.target as HTMLElement)?.tagName === 'INPUT') return;
+      if (showNewGame || showPrefs || (e.target as HTMLElement)?.tagName === 'INPUT') return;
       if (e.key === 'ArrowLeft') goto(view - 1);
       else if (e.key === 'ArrowRight') goto(view + 1);
       else if (e.key === 'Home') goto(0);
@@ -270,12 +347,13 @@ export default function App() {
       else if (e.key.toLowerCase() === 't') setTestMode((t) => !t);
       else if (e.key.toLowerCase() === 'f') setFlipped((f) => !f);
       else if (e.key === 'Escape') setShowReview(false);
+      else if (e.key === ' ' && releaseRef.current) releaseRef.current();
       else return;
       e.preventDefault();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [goto, view, moves.length, showNewGame]);
+  }, [goto, view, moves.length, showNewGame, showPrefs]);
 
   // --- Échiquier ---
   const orientation: 'white' | 'black' = (playerColor === 'w') !== flipped ? 'white' : 'black';
@@ -384,6 +462,17 @@ export default function App() {
             </span>
             <span>{testMode ? 'Mode test' : 'Conseils'}</span>
           </label>
+          <button className="icon-btn" onClick={() => setShowPrefs(true)} aria-label="Apparence et rythme" title="Apparence et rythme">
+            <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden>
+              <path
+                d="M12 15.5a3.5 3.5 0 100-7 3.5 3.5 0 000 7zm7.4-2.5a7.6 7.6 0 000-2l2-1.6-2-3.4-2.4 1a7.4 7.4 0 00-1.7-1L15 3.5h-4l-.4 2.5a7.4 7.4 0 00-1.7 1l-2.4-1-2 3.4 2 1.6a7.6 7.6 0 000 2l-2 1.6 2 3.4 2.4-1a7.4 7.4 0 001.7 1l.4 2.5h4l.4-2.5a7.4 7.4 0 001.7-1l2.4 1 2-3.4z"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.6"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </button>
           {started && moves.length > 0 && (
             <button className="btn ghost" onClick={() => setShowReview(true)}>
               Bilan
@@ -439,6 +528,7 @@ export default function App() {
                   customLightSquareStyle={{ backgroundColor: 'var(--sq-light)' }}
                   customBoardStyle={{ borderRadius: '6px', overflow: 'hidden' }}
                   customNotationStyle={{ fontSize: '11px', fontWeight: 600 }}
+                  customPieces={customPieces}
                 />
               </div>
             </div>
@@ -507,6 +597,11 @@ export default function App() {
             gameOver={gameOver}
             showBest={showBest}
             onToggleBest={() => setShowBest((s) => !s)}
+            awaitingAnalysis={awaitingAnalysis}
+            countdown={countdown}
+            onTakeback={takeback}
+            onRelease={() => releaseRef.current?.()}
+            onHold={() => holdRef.current?.()}
           />
           <MoveList moves={moves} reviews={reviews} viewPly={view} testMode={testMode} onSelect={goto} />
           {gameOver && (
@@ -520,6 +615,7 @@ export default function App() {
         </aside>
       </main>
 
+      {showPrefs && <PreferencesDialog prefs={prefs} onChange={setPrefs} onClose={() => setShowPrefs(false)} />}
       {showNewGame && (
         <NewGameDialog
           initial={settings}

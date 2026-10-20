@@ -8,6 +8,8 @@ Application web d’entraînement aux échecs : jouez contre Stockfish au niveau
 - **Échiquier interactif** : glisser-déposer ou clic-clic, promotion, navigation dans les coups (boutons ou ← → Début Fin), reprise du dernier coup, et possibilité de rejouer depuis n’importe quelle position passée (nouvelle suite).
 - **Barre d’évaluation** à gauche, animée après chaque coup, avec la valeur numérique (+1,5, −0,8, M3…).
 - **Entraîneur** à droite : classe chaque coup (meilleur, excellent, bon, imprécision, mauvais coup, gaffe), explique pourquoi (pièce en prise, tactique manquée, mat concédé ou manqué, roi affaibli, perte positionnelle…) et propose la meilleure alternative avec sa variante et une flèche sur l’échiquier. Il signale aussi les erreurs de l’adversaire à exploiter.
+- **Temps de lecture** : après votre coup, l’IA attend que l’analyse s’affiche, puis 3 s, 6 s ou votre clic (réglable). Pendant ce temps : reprendre le coup, mettre en pause ou jouer tout de suite (Espace).
+- **Thèmes** (bouton ⚙) : 4 thèmes d’interface (Club, Nuit, Acajou, Craie clair), 7 échiquiers et 6 jeux de pièces, mémorisés dans le navigateur.
 - **Mode test** (interrupteur ou touche T) : masque instantanément évaluation, conseils et annotations ; l’analyse continue en arrière-plan.
 - **Bilan final** : précision des deux camps, courbe d’évaluation cliquable, répartition des coups, moments clés à revoir, thèmes récurrents, précision par phase de jeu et axes de progression.
 
@@ -83,8 +85,11 @@ Ou en ligne de commande : `npx vercel` puis `npx vercel --prod`.
 | Début / Fin | Début de partie / position actuelle |
 | T | Basculer conseils / mode test |
 | F | Retourner l’échiquier |
+| Espace | Laisser l’adversaire jouer tout de suite |
 | Échap | Fermer le bilan |
 
 ## Licence
+
+Les jeux de pièces proviennent du projet Lichess ; leurs licences (GPLv2+, Apache 2.0, MIT, CC0) sont listées dans `public/pieces/LICENSES.md`.
 
 Stockfish est distribué sous licence GPLv3 (stockfish.js © Chess.com, LLC, d’après le projet Stockfish). L’application le charge comme un fichier séparé ; si vous redistribuez le projet, respectez les obligations de la GPLv3 (mise à disposition du code source).

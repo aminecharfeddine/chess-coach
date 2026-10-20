@@ -15,17 +15,83 @@ interface Props {
   gameOver: string | null;
   showBest: boolean;
   onToggleBest: () => void;
+  awaitingAnalysis: boolean;
+  countdown: { deadline: number | null; total: number } | null;
+  onTakeback: () => void;
+  onRelease: () => void;
+  onHold: () => void;
+}
+
+/** Bandeau affiché entre votre coup et la réponse de l'IA. */
+function PauseBox({
+  awaiting,
+  countdown,
+  onTakeback,
+  onRelease,
+  onHold,
+}: {
+  awaiting: boolean;
+  countdown: { deadline: number | null; total: number } | null;
+  onTakeback: () => void;
+  onRelease: () => void;
+  onHold: () => void;
+}) {
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    if (!countdown?.deadline) return;
+    const id = setInterval(() => setNow(Date.now()), 200);
+    return () => clearInterval(id);
+  }, [countdown?.deadline]);
+
+  const remaining = countdown?.deadline ? Math.max(0, countdown.deadline - now) : null;
+  return (
+    <div className="pausebox" role="status">
+      <div className="pausebox-text">
+        {awaiting
+          ? 'Analyse de votre coup…'
+          : remaining !== null
+            ? `L’adversaire répond dans ${Math.ceil(remaining / 1000)} s`
+            : 'En pause : l’adversaire attend votre signal.'}
+      </div>
+      {countdown?.deadline && (
+        <div className="pausebar">
+          <div
+            key={countdown.deadline}
+            style={{ animationDuration: `${countdown.total}ms` }}
+          />
+        </div>
+      )}
+      <div className="pausebox-actions">
+        <button className="btn ghost sm" onClick={onTakeback}>
+          ↶ Reprendre
+        </button>
+        {countdown?.deadline && (
+          <button className="btn ghost sm" onClick={onHold}>
+            Pause
+          </button>
+        )}
+        {!awaiting && (
+          <button className="btn primary sm" onClick={onRelease} title="Raccourci : Espace">
+            {countdown?.deadline ? 'Jouer' : 'Continuer'}
+          </button>
+        )}
+      </div>
+    </div>
+  );
 }
 
 export function CoachPanel(p: Props) {
   const [reveal, setReveal] = useState(false);
   useEffect(() => setReveal(false), [p.viewPly]);
 
+  const pausing = !p.testMode && (p.awaitingAnalysis || !!p.countdown);
   const status = !p.started
     ? 'Choisissez un adversaire pour commencer.'
     : p.gameOver
       ? p.gameOver
-      : p.aiThinking
+      : pausing
+        ? 'Lisez l’analyse de votre coup.'
+        : p.aiThinking
         ? 'L’adversaire réfléchit…'
         : p.isPlayerTurn
           ? 'À vous de jouer.'
@@ -122,8 +188,17 @@ export function CoachPanel(p: Props) {
     <section className="coach" aria-live="polite" aria-label="Entraîneur">
       <header className="coach-title">
         <h2>Entraîneur</h2>
-        <span className={`status ${p.aiThinking ? 'thinking' : ''}`}>{status}</span>
+        <span className={`status ${p.aiThinking && !pausing ? 'thinking' : ''}`}>{status}</span>
       </header>
+      {pausing && (
+        <PauseBox
+          awaiting={p.awaitingAnalysis}
+          countdown={p.countdown}
+          onTakeback={p.onTakeback}
+          onRelease={p.onRelease}
+          onHold={p.onHold}
+        />
+      )}
       {body}
       {p.pending && !p.testMode && <div className="analysis-progress">Analyse Stockfish en cours…</div>}
     </section>
