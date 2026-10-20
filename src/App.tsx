@@ -13,6 +13,8 @@ import { MoveList } from './components/MoveList';
 import { NewGameDialog, type GameSettings } from './components/NewGameDialog';
 import { ReviewDialog } from './components/ReviewDialog';
 import { PreferencesDialog } from './components/PreferencesDialog';
+import { ProfileDialog } from './components/ProfileDialog';
+import { loadProfile, saveProfile, upsertGame, type Outcome, type Profile, type SavedGame } from './lib/history';
 import {
   PIECE_CODES,
   applyUiTheme,
@@ -91,6 +93,12 @@ export default function App() {
   const releaseRef = useRef<(() => void) | null>(null);
   const holdRef = useRef<(() => void) | null>(null);
   const reviewShownFor = useRef<number>(-1);
+  const [profile, setProfile] = useState<Profile>(loadProfile);
+  const [showProfile, setShowProfile] = useState(false);
+  /** Partie de l'historique en cours de relecture (non réenregistrée) */
+  const [replay, setReplay] = useState<SavedGame | null>(null);
+  const [autoplay, setAutoplay] = useState(false);
+  const gameKey = useRef<string>('');
   const gameId = useRef(0);
 
   // --- Moteurs (deux workers Stockfish distincts) ---
@@ -273,6 +281,82 @@ export default function App() {
     };
   }, [aiToMove, awaitingAnalysis, tipFen, settings.elo, needPause, prefs.pause]);
 
+  // --- Historique / profil (localStorage, pas de base de données) ---
+  useEffect(() => saveProfile(profile), [profile]);
+
+  const outcome: Outcome | null = useMemo(() => {
+    if (!gameOver) return null;
+    if (resigned) return 'loss';
+    if (game.isCheckmate()) return game.turn() === playerColor ? 'loss' : 'win';
+    return 'draw';
+  }, [gameOver, resigned, game, playerColor]);
+
+  useEffect(() => {
+    if (!outcome || !gameOver || replay || !gameKey.current || moves.length === 0) return;
+    const entry: SavedGame = {
+      id: gameKey.current,
+      date: Date.now(),
+      playerColor,
+      elo: settings.elo,
+      depth: settings.depth,
+      outcome,
+      resultText: gameOver,
+      resigned,
+      moves: moves.map((m) => m.san),
+      accuracy: report.player.accuracy,
+      opponentAccuracy: report.opponent.accuracy,
+      counts: report.player.moves ? report.player.counts : null,
+      statsCounted: false,
+    };
+    setProfile((p) => {
+      const prev = p.games.find((g) => g.id === entry.id);
+      if (prev) entry.date = prev.date;
+      return upsertGame(p, entry, report.complete);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [outcome, report]);
+
+  // Lecture automatique des coups
+  useEffect(() => {
+    if (!autoplay) return;
+    if (view >= moves.length) {
+      setAutoplay(false);
+      return;
+    }
+    // Attend le commentaire du coup affiché (sauf mode test) pour laisser le temps de le lire
+    const ready = testMode || view === 0 || !!reviews[view - 1];
+    if (!ready) return;
+    const t = setTimeout(() => setView((v) => Math.min(v + 1, moves.length)), testMode ? 900 : 1800);
+    return () => clearTimeout(t);
+  }, [autoplay, view, moves.length, reviews, testMode]);
+
+  const openSaved = (g: SavedGame) => {
+    opponentRef.current?.stop();
+    const c = new Chess();
+    const ms: Move[] = [];
+    try {
+      g.moves.forEach((san) => ms.push(c.move(san)));
+    } catch {
+      /* partie tronquée : on garde ce qui est valide */
+    }
+    if (analystRef.current?.setDepth(g.depth)) setAnalyses({});
+    gameId.current++;
+    reviewShownFor.current = gameId.current; // pas d'ouverture auto du bilan
+    gameKey.current = '';
+    setReplay(g);
+    setPlayerColor(g.playerColor);
+    setSettings((s) => ({ ...s, elo: g.elo, depth: g.depth }));
+    setFlipped(false);
+    setMoves(ms);
+    setView(0);
+    setResigned(g.resigned);
+    setSelected(null);
+    setShowReview(false);
+    setShowProfile(false);
+    setStarted(true);
+    setAutoplay(true);
+  };
+
   // Ouvre le bilan automatiquement à la fin de la partie (une fois l'analyse terminée)
   useEffect(() => {
     if (gameOver && report.complete && reviewShownFor.current !== gameId.current) {
@@ -297,6 +381,9 @@ export default function App() {
     void opponentRef.current?.newGame();
     if (analystRef.current?.setDepth(s.depth)) setAnalyses({});
     gameId.current++;
+    gameKey.current = Date.now().toString(36);
+    setReplay(null);
+    setAutoplay(false);
     setSettings(s);
     setPlayerColor(color);
     setFlipped(false);
@@ -352,12 +439,13 @@ export default function App() {
   const goto = useCallback((ply: number) => {
     setView(Math.max(0, Math.min(moves.length, ply)));
     setSelected(null);
+    setAutoplay(false);
   }, [moves.length]);
 
   // Raccourcis clavier
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (showNewGame || showPrefs || (e.target as HTMLElement)?.tagName === 'INPUT') return;
+      if (showNewGame || showPrefs || showProfile || (e.target as HTMLElement)?.tagName === 'INPUT') return;
       if (e.key === 'ArrowLeft') goto(view - 1);
       else if (e.key === 'ArrowRight') goto(view + 1);
       else if (e.key === 'Home') goto(0);
@@ -371,7 +459,7 @@ export default function App() {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [goto, view, moves.length, showNewGame, showPrefs]);
+  }, [goto, view, moves.length, showNewGame, showPrefs, showProfile]);
 
   // --- Échiquier ---
   const orientation: 'white' | 'black' = (playerColor === 'w') !== flipped ? 'white' : 'black';
@@ -503,6 +591,12 @@ export default function App() {
             </span>
             <span>{testMode ? 'Mode test' : 'Conseils'}</span>
           </label>
+          <button className="btn ghost profile-btn" onClick={() => setShowProfile(true)} title="Profil et historique">
+            <span className="avatar sm" aria-hidden>
+              {profile.name.trim().charAt(0).toUpperCase() || 'J'}
+            </span>
+            Profil
+          </button>
           <button className="icon-btn" onClick={() => setShowPrefs(true)} aria-label="Apparence et rythme" title="Apparence et rythme">
             <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden>
               <path
@@ -591,6 +685,18 @@ export default function App() {
               <span className="ply-counter">
                 {view}/{moves.length}
               </span>
+              <button
+                className={`icon-btn ${autoplay ? 'on' : ''}`}
+                onClick={() => {
+                  if (!autoplay && atTip) setView(0);
+                  setAutoplay((a) => !a);
+                }}
+                disabled={moves.length === 0}
+                aria-label={autoplay ? 'Arrêter la lecture' : 'Lecture automatique'}
+                title={autoplay ? 'Arrêter la lecture' : 'Lecture automatique'}
+              >
+                {autoplay ? '❚❚' : '⏵'}
+              </button>
               <button className="icon-btn" onClick={() => goto(view + 1)} disabled={atTip} aria-label="Coup suivant">
                 ▶
               </button>
@@ -619,7 +725,16 @@ export default function App() {
               </button>
             </div>
           </nav>
-          {!atTip && started && !gameOver && (
+          {replay && (
+            <p className="branch-hint">
+              Relecture de la partie du {new Date(replay.date).toLocaleDateString('fr-FR')} contre Stockfish{' '}
+              {replay.elo} : l’entraîneur réanalyse chaque coup.{' '}
+              <button className="link" onClick={() => setShowNewGame(true)}>
+                Nouvelle partie
+              </button>
+            </p>
+          )}
+          {!atTip && started && !gameOver && !replay && (
             <p className="branch-hint">
               Vous consultez un coup passé. {viewTurn === playerColor ? 'Jouez ici pour essayer une autre suite, ou ' : ''}
               <button className="link" onClick={() => goto(moves.length)}>
@@ -661,11 +776,19 @@ export default function App() {
         </aside>
       </main>
 
+      {showProfile && (
+        <ProfileDialog
+          profile={profile}
+          onChange={setProfile}
+          onOpenGame={openSaved}
+          onClose={() => setShowProfile(false)}
+        />
+      )}
       {showPrefs && <PreferencesDialog prefs={prefs} onChange={setPrefs} onClose={() => setShowPrefs(false)} />}
       {showNewGame && (
         <NewGameDialog
           initial={settings}
-          canCancel={started}
+          canCancel
           onStart={startGame}
           onCancel={() => setShowNewGame(false)}
         />
