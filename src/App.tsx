@@ -282,6 +282,8 @@ export default function App() {
   }, [gameOver, report.complete]);
 
   useEffect(() => setShowBest(true), [view]);
+  const [marks, setMarks] = useState<Square[]>([]);
+  useEffect(() => setMarks([]), [view, moves.length]);
 
   // --- Actions ---
   const startGame = (s: GameSettings) => {
@@ -399,6 +401,7 @@ export default function App() {
   const legalTargets = selected && hintIsMine ? hintTargets : [];
 
   const onSquareClick = (sq: Square) => {
+    setMarks([]);
     if (!started) return;
     const piece = new Chess(viewFen).get(sq);
     if (selected && canMoveHere && legalTargets.includes(sq)) {
@@ -451,17 +454,28 @@ export default function App() {
     });
   }
 
-  const arrows: [Square, Square, string][] = [];
-  if (
+  // Flèche verte du meilleur coup. Mémorisée : react-chessboard efface les flèches
+  // dessinées par l'utilisateur à chaque changement de cette liste (donc à chaque coup).
+  const bestArrowUci =
     !testMode &&
     showBest &&
-    currentReview &&
-    currentReview.bestUci &&
+    currentReview?.bestUci &&
     ['inaccuracy', 'mistake', 'blunder'].includes(currentReview.classification)
-  ) {
-    const b = parseUci(currentReview.bestUci);
-    arrows.push([b.from as Square, b.to as Square, 'rgba(63,185,138,0.85)']);
-  }
+      ? currentReview.bestUci
+      : null;
+  const arrows = useMemo<[Square, Square, string][]>(() => {
+    if (!bestArrowUci) return [];
+    const b = parseUci(bestArrowUci);
+    return [[b.from as Square, b.to as Square, 'rgba(63,185,138,0.85)']];
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bestArrowUci, view, moves.length]);
+
+  // Cases marquées en rouge (clic droit), effacées à chaque coup ou clic gauche
+  const toggleMark = (sq: Square) =>
+    setMarks((m) => (m.includes(sq) ? m.filter((x) => x !== sq) : [...m, sq]));
+  marks.forEach((sq) => {
+    squareStyles[sq] = { ...(squareStyles[sq] ?? {}), boxShadow: 'inset 0 0 0 200px rgba(235, 97, 80, 0.78)' };
+  });
 
   const viewEval = analyses[viewFen]?.eval;
   const isPlayerTurn = started && atTip && !gameOver && game.turn() === playerColor;
@@ -554,6 +568,8 @@ export default function App() {
                   customSquareStyles={squareStyles}
                   customArrows={arrows}
                   areArrowsAllowed
+                  customArrowColor="rgba(255, 170, 0, 0.8)"
+                  onSquareRightClick={toggleMark}
                   customDarkSquareStyle={{ backgroundColor: 'var(--sq-dark)' }}
                   customLightSquareStyle={{ backgroundColor: 'var(--sq-light)' }}
                   customBoardStyle={{ borderRadius: '6px', overflow: 'hidden' }}
