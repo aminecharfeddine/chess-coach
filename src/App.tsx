@@ -10,6 +10,7 @@ import { START_FEN, parseUci, turnOf } from './lib/chessUtils';
 import { EvalBar } from './components/EvalBar';
 import { CoachPanel } from './components/CoachPanel';
 import { MoveList } from './components/MoveList';
+import { PromotionPicker } from './components/PromotionPicker';
 import { NewGameDialog, type GameSettings } from './components/NewGameDialog';
 import { ReviewDialog } from './components/ReviewDialog';
 import { PreferencesDialog } from './components/PreferencesDialog';
@@ -367,7 +368,10 @@ export default function App() {
 
   useEffect(() => setShowBest(true), [view]);
   const [marks, setMarks] = useState<Square[]>([]);
-  useEffect(() => setMarks([]), [view, moves.length]);
+  useEffect(() => {
+    setMarks([]);
+    setPromotion(null);
+  }, [view, moves.length]);
 
   // --- Actions ---
   const startGame = (s: GameSettings) => {
@@ -396,7 +400,7 @@ export default function App() {
     setStarted(true);
   };
 
-  const canMoveHere = started && !promotion && viewTurn === playerColor && !(atTip && gameOver);
+  const canMoveHere = started && viewTurn === playerColor && !(atTip && gameOver);
 
   const playMove = useCallback(
     (from: Square, to: Square, promo?: string): boolean => {
@@ -638,27 +642,21 @@ export default function App() {
                   boardWidth={boardWidth}
                   boardOrientation={orientation}
                   animationDuration={180}
-                  arePiecesDraggable={canMoveHere}
+                  arePiecesDraggable={canMoveHere && !promotion}
                   isDraggablePiece={({ piece }) => piece[0] === playerColor}
-                  onPieceDrop={(from, to, piece) => {
-                    const promo = piece[1]?.toLowerCase();
-                    return playMove(from, to, isPromotion(from, to) ? promo : undefined);
+                  onPieceDrop={(from, to) => {
+                    if (isPromotion(from, to)) {
+                      if (!canMoveHere) return false;
+                      setPromotion({ from, to });
+                      return false;
+                    }
+                    return playMove(from, to);
                   }}
+                  onPromotionCheck={() => false}
                   onSquareClick={onSquareClick}
                   onMouseOverSquare={(sq) => setHover(new Chess(viewFen).get(sq) ? sq : null)}
                   onMouseOutSquare={() => setHover(null)}
                   onPieceDragBegin={(_piece, sq) => setSelected(sq)}
-                  onPromotionPieceSelect={(piece) => {
-                    if (promotion && piece) {
-                      const ok = playMove(promotion.from, promotion.to, piece[1].toLowerCase());
-                      setPromotion(null);
-                      return ok;
-                    }
-                    setPromotion(null);
-                    return true;
-                  }}
-                  showPromotionDialog={!!promotion}
-                  promotionToSquare={promotion?.to ?? null}
                   customSquareStyles={squareStyles}
                   customArrows={arrows}
                   areArrowsAllowed
@@ -670,6 +668,23 @@ export default function App() {
                   customNotationStyle={{ fontSize: '11px', fontWeight: 600 }}
                   customPieces={customPieces}
                 />
+                {promotion && (
+                  <PromotionPicker
+                    to={promotion.to}
+                    color={playerColor}
+                    orientation={orientation}
+                    boardWidth={boardWidth}
+                    folder={findPieces(prefs.pieces).folder ?? 'cburnett'}
+                    onSelect={(p) => {
+                      playMove(promotion.from, promotion.to, p);
+                      setPromotion(null);
+                    }}
+                    onCancel={() => {
+                      setPromotion(null);
+                      setSelected(null);
+                    }}
+                  />
+                )}
               </div>
             </div>
           </div>

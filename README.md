@@ -11,7 +11,7 @@ Application web d’entraînement aux échecs : jouez contre Stockfish au niveau
 - **Coups possibles** : survolez ou cliquez une pièce (la vôtre ou celle de l’adversaire) pour voir où elle peut aller ; points rouges pour les pièces adverses.
 - **Annotations** : clic droit sur une case pour la marquer en rouge, clic droit glissé pour tracer une flèche jaune (comme sur chess.com). Clic gauche ou coup suivant pour tout effacer.
 - **Temps de lecture** : après votre coup, l’IA attend que l’analyse s’affiche, puis 3 s, 6 s ou votre clic (réglable). Pendant ce temps : reprendre le coup, mettre en pause ou jouer tout de suite (Espace).
-- **Thèmes** (bouton ⚙) : 4 thèmes d’interface (Club, Nuit, Acajou, Craie clair), 7 échiquiers et 6 jeux de pièces, mémorisés dans le navigateur.
+- **Thèmes** (bouton ⚙) : 10 thèmes d’interface (dont 3 clairs), 15 échiquiers et 14 jeux de pièces, mémorisés dans le navigateur.
 - **Profil et historique** (bouton Profil) : 10 dernières parties rejouables en lecture automatique avec les commentaires de l’entraîneur, statistiques cumulées (victoires/nulles/défaites, précision moyenne et son évolution, répartition des coups, séries, meilleure victoire), export PGN, sauvegarde et import du profil. Stocké dans le navigateur, sans base de données.
 - **Mode test** (interrupteur ou touche T) : masque instantanément évaluation, conseils et annotations ; l’analyse continue en arrière-plan.
 - **Bilan final** : précision des deux camps, courbe d’évaluation cliquable, répartition des coups, moments clés à revoir, thèmes récurrents, précision par phase de jeu et axes de progression.

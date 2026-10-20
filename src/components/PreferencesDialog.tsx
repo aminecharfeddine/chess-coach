@@ -101,11 +101,18 @@ export function PreferencesDialog({ prefs, onChange, onClose }: Props) {
                 <span className="piece-swatch">
                   {s.folder ? (
                     <>
-                      <img src={pieceUrl(s.folder, 'wN')} alt="" />
-                      <img src={pieceUrl(s.folder, 'bQ')} alt="" />
+                      <span style={{ background: findBoard(prefs.board).light }}>
+                        <img src={pieceUrl(s.folder, 'wN')} alt="" />
+                      </span>
+                      <span style={{ background: findBoard(prefs.board).dark }}>
+                        <img src={pieceUrl(s.folder, 'bQ')} alt="" />
+                      </span>
                     </>
                   ) : (
-                    <span className="classic-glyph">♘♛</span>
+                    <>
+                      <span style={{ background: findBoard(prefs.board).light }} className="classic-glyph">♘</span>
+                      <span style={{ background: findBoard(prefs.board).dark }} className="classic-glyph">♛</span>
+                    </>
                   )}
                 </span>
                 {s.label}
