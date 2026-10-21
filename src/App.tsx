@@ -52,11 +52,11 @@ const TESTMODE_KEY = 'eldrachess.testMode';
 function loadSettings(): GameSettings {
   try {
     const raw = localStorage.getItem(SETTINGS_KEY);
-    if (raw) return { elo: 1200, color: 'w', depth: 16, ...JSON.parse(raw) };
+    if (raw) return { elo: 1200, color: 'w', depth: 16, coach: true, ...JSON.parse(raw) };
   } catch {
     /* stockage indisponible */
   }
-  return { elo: 1200, color: 'w', depth: 16 };
+  return { elo: 1200, color: 'w', depth: 16, coach: true };
 }
 
 
@@ -97,7 +97,7 @@ export default function App() {
     }
   });
   const [resigned, setResigned] = useState(false);
-  const [showNewGame, setShowNewGame] = useState(true);
+  const [showNewGame, setShowNewGame] = useState(false);
   const [showReview, setShowReview] = useState(false);
   const [aiThinking, setAiThinking] = useState(false);
   const [flipped, setFlipped] = useState(false);
@@ -392,6 +392,7 @@ export default function App() {
 
   // --- Actions ---
   const startGame = (s: GameSettings) => {
+    setTestMode(!s.coach);
     try {
       localStorage.setItem(SETTINGS_KEY, JSON.stringify(s));
     } catch {
@@ -777,6 +778,7 @@ export default function App() {
             onTakeback={takeback}
             onRelease={() => releaseRef.current?.()}
             onHold={() => holdRef.current?.()}
+            onNewGame={() => setShowNewGame(true)}
           />
           <section className="moves-card" aria-label="Coups joués">
             <header className="moves-head">

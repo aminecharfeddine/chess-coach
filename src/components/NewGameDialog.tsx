@@ -5,6 +5,8 @@ export interface GameSettings {
   elo: number;
   color: 'w' | 'b' | 'random';
   depth: number;
+  /** Conseils de l'entraîneur pendant la partie (sinon mode test) */
+  coach: boolean;
 }
 
 export const DEPTHS = [
@@ -83,7 +85,24 @@ export function NewGameDialog({ initial, canCancel, onStart, onCancel }: Props) 
         </fieldset>
 
         <fieldset>
-          <legend>Analyse de l’entraîneur</legend>
+          <legend>Entraîneur</legend>
+          <div className="segmented">
+            <button type="button" className={s.coach ? 'on' : ''} onClick={() => setS({ ...s, coach: true })}>
+              Avec conseils
+            </button>
+            <button type="button" className={!s.coach ? 'on' : ''} onClick={() => setS({ ...s, coach: false })}>
+              Sans entraîneur
+            </button>
+          </div>
+          <p className="muted small">
+            {s.coach
+              ? 'Chaque coup est commenté, avec la barre d’évaluation et le meilleur coup.'
+              : 'Mode test : ni évaluation ni conseils pendant la partie. Le bilan reste disponible à la fin.'}
+          </p>
+        </fieldset>
+
+        <fieldset>
+          <legend>Précision de l’analyse</legend>
           <div className="segmented">
             {DEPTHS.map((d) => (
               <button type="button" key={d.depth} title={d.hint} className={s.depth === d.depth ? 'on' : ''} onClick={() => setS({ ...s, depth: d.depth })}>

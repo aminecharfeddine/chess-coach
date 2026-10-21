@@ -21,6 +21,7 @@ interface Props {
   onTakeback: () => void;
   onRelease: () => void;
   onHold: () => void;
+  onNewGame: () => void;
 }
 
 /** Bandeau affiché entre votre coup et la réponse de l'IA. */
@@ -88,7 +89,7 @@ export function CoachPanel(p: Props) {
 
   const pausing = !p.testMode && (p.awaitingAnalysis || !!p.countdown);
   const status = !p.started
-    ? 'Choisissez un adversaire pour commencer.'
+    ? 'Prêt à jouer'
     : p.gameOver
       ? p.gameOver
       : pausing
@@ -100,7 +101,18 @@ export function CoachPanel(p: Props) {
           : 'Navigation dans la partie.';
 
   let body: JSX.Element;
-  if (p.testMode) {
+  if (!p.started) {
+    body = (
+      <div className="coach-empty welcome">
+        <p className="coach-voice">
+          Choisissez le niveau de Stockfish, votre couleur, et si vous voulez être conseillé pendant la partie.
+        </p>
+        <button className="btn primary" onClick={p.onNewGame}>
+          Nouvelle partie
+        </button>
+      </div>
+    );
+  } else if (p.testMode) {
     body = (
       <div className="coach-empty">
         <p className="coach-voice">Mode test activé.</p>
