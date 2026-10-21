@@ -144,7 +144,7 @@ export function CoachPanel(p: Props) {
               {info.label}
             </div>
             <div className="coach-move">
-              {mine ? 'Votre coup' : 'Coup de l’adversaire'} :{' '}
+              {mine ? 'Votre coup' : 'Adversaire'} :{' '}
               <strong>{toFrenchSan(r.san)}</strong>
             </div>
           </div>

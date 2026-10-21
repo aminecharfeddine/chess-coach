@@ -195,6 +195,108 @@ export const UI_THEMES: UiTheme[] = [
       '--scheme': 'light',
     },
   },
+  {
+    id: 'neige',
+    label: 'Neige',
+    swatch: ['#f6f7f9', '#ffffff', '#4353ff'],
+    vars: {
+      '--bg': '#f6f7f9',
+      '--surface': '#ffffff',
+      '--surface-2': '#eef0f4',
+      '--line': '#e1e4ea',
+      '--text': '#151821',
+      '--muted': '#5f6675',
+      '--brass': '#4353ff',
+      '--brass-hover': '#5b69ff',
+      '--brass-ink': '#ffffff',
+      '--scheme': 'light',
+    },
+  },
+  {
+    id: 'ciel',
+    label: 'Ciel',
+    swatch: ['#eef4fb', '#ffffff', '#1d6fe0'],
+    vars: {
+      '--bg': '#eef4fb',
+      '--surface': '#ffffff',
+      '--surface-2': '#e3ecf7',
+      '--line': '#d3dfee',
+      '--text': '#0f1e33',
+      '--muted': '#556985',
+      '--brass': '#1d6fe0',
+      '--brass-hover': '#3583ee',
+      '--brass-ink': '#ffffff',
+      '--scheme': 'light',
+    },
+  },
+  {
+    id: 'brume',
+    label: 'Brume',
+    swatch: ['#eef3f2', '#fbfdfc', '#0e8a7f'],
+    vars: {
+      '--bg': '#eef3f2',
+      '--surface': '#fbfdfc',
+      '--surface-2': '#e2eae8',
+      '--line': '#d2dddb',
+      '--text': '#14201e',
+      '--muted': '#55716c',
+      '--brass': '#0e8a7f',
+      '--brass-hover': '#16a194',
+      '--brass-ink': '#ffffff',
+      '--scheme': 'light',
+    },
+  },
+  {
+    id: 'petale',
+    label: 'Pétale',
+    swatch: ['#fbf4f5', '#ffffff', '#c23a6b'],
+    vars: {
+      '--bg': '#fbf4f5',
+      '--surface': '#ffffff',
+      '--surface-2': '#f5e7ea',
+      '--line': '#ecd8dd',
+      '--text': '#261519',
+      '--muted': '#7a5d64',
+      '--brass': '#c23a6b',
+      '--brass-hover': '#d4517f',
+      '--brass-ink': '#ffffff',
+      '--scheme': 'light',
+    },
+  },
+  {
+    id: 'lilas',
+    label: 'Lilas',
+    swatch: ['#f5f3fc', '#ffffff', '#6b4ce6'],
+    vars: {
+      '--bg': '#f5f3fc',
+      '--surface': '#ffffff',
+      '--surface-2': '#ece8f8',
+      '--line': '#dfd9f2',
+      '--text': '#1c1730',
+      '--muted': '#6a6385',
+      '--brass': '#6b4ce6',
+      '--brass-hover': '#7d61f0',
+      '--brass-ink': '#ffffff',
+      '--scheme': 'light',
+    },
+  },
+  {
+    id: 'agrume',
+    label: 'Agrume',
+    swatch: ['#fbf8ef', '#fffdf7', '#c77700'],
+    vars: {
+      '--bg': '#fbf8ef',
+      '--surface': '#fffdf7',
+      '--surface-2': '#f3eddc',
+      '--line': '#e7dfc8',
+      '--text': '#221d10',
+      '--muted': '#6f6750',
+      '--brass': '#c77700',
+      '--brass-hover': '#dc8a10',
+      '--brass-ink': '#ffffff',
+      '--scheme': 'light',
+    },
+  },
 ];
 
 export const BOARD_THEMES: BoardTheme[] = [
@@ -285,6 +387,7 @@ export function applyUiTheme(id: string) {
     else root.style.setProperty(k, v);
   }
   root.dataset.theme = t.id;
+  root.dataset.scheme = t.vars['--scheme'];
   document.querySelector('meta[name="theme-color"]')?.setAttribute('content', t.vars['--bg']);
 }
 

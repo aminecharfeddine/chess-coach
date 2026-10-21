@@ -43,8 +43,9 @@ import {
   type Preferences,
 } from './lib/themes';
 
-const EVAL_GUTTER = 42; // largeur barre d'évaluation + espace
-const STRIP_H = 104; // deux bandeaux joueurs (haut + bas) avec leurs marges
+/** Largeur barre d'évaluation + espace, selon la taille d'écran */
+const evalGutter = () => (window.innerWidth <= 640 ? 30 : 44);
+const STRIP_H = 2 * 38 + 2 * 8; // deux bandeaux joueurs (haut + bas) et leurs espacements
 const SETTINGS_KEY = 'eldrachess.settings';
 const TESTMODE_KEY = 'eldrachess.testMode';
 
@@ -483,18 +484,34 @@ export default function App() {
 
   // --- Échiquier ---
   const orientation: 'white' | 'black' = (playerColor === 'w') !== flipped ? 'white' : 'black';
-  const boardWrap = useRef<HTMLDivElement>(null);
+  const layoutRef = useRef<HTMLElement>(null);
   const [boardWidth, setBoardWidth] = useState(560);
+  const [gutter, setGutter] = useState(44);
+  // Taille de l'échiquier : le plus grand carré qui tient à côté de la colonne de droite
+  // (ou sur toute la largeur en mobile) et dans la hauteur de la fenêtre.
   useLayoutEffect(() => {
-    const el = boardWrap.current;
+    const el = layoutRef.current;
     if (!el) return;
-    const ro = new ResizeObserver(() => {
-      const r = el.getBoundingClientRect();
-      const h = window.innerWidth <= 1000 ? Infinity : r.height;
-      setBoardWidth(Math.max(240, Math.floor(Math.min(r.width - EVAL_GUTTER, h - STRIP_H))));
-    });
+    const measure = () => {
+      const cs = getComputedStyle(el);
+      const inner = el.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+      const stacked = window.innerWidth <= 1000;
+      const side = el.querySelector<HTMLElement>('.side');
+      const sideW = stacked || !side ? 0 : side.getBoundingClientRect().width + parseFloat(cs.columnGap || '0');
+      const g = evalGutter();
+      const availW = inner - sideW - g;
+      const availH = stacked ? Infinity : window.innerHeight - 104 - STRIP_H;
+      setGutter(g);
+      setBoardWidth(Math.max(240, Math.floor(Math.min(availW, availH, 1000))));
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
     ro.observe(el);
-    return () => ro.disconnect();
+    window.addEventListener('resize', measure);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener('resize', measure);
+    };
   }, []);
 
   // Case dont on montre les coups possibles : pièce sélectionnée, sinon pièce survolée
@@ -592,7 +609,7 @@ export default function App() {
   const strip = (color: 'w' | 'b') => {
     const engine = color === aiColor;
     return (
-      <div className="strip-slot" style={{ width: boardWidth, marginLeft: EVAL_GUTTER }}>
+      <div className="strip-slot" style={{ width: boardWidth, marginLeft: gutter }}>
         <PlayerStrip
           name={engine ? `Stockfish ${settings.elo}` : profile.name || 'Joueur'}
           detail={engine ? eloLabel(settings.elo) : started ? 'Vous' : 'En attente'}
@@ -612,10 +629,12 @@ export default function App() {
     <div className="app">
       <header className="topbar">
         <div className="brand">
-          <svg viewBox="0 0 64 64" width="28" height="28" aria-hidden>
-            <path d="M22 52h20l-2-6H24zM26 44h12l-1-12 4-6-4-6h-3l1-4h-6l1 4h-3l-4 6 4 6z" fill="currentColor" />
-          </svg>
-          <span>Eldrachess</span>
+          <span className="brand-mark" aria-hidden>
+            <svg viewBox="0 0 64 64" width="22" height="22">
+              <path d="M22 52h20l-2-6H24zM26 44h12l-1-12 4-6-4-6h-3l1-4h-6l1 4h-3l-4 6 4 6z" fill="currentColor" />
+            </svg>
+          </span>
+          <span className="brand-name">Eldrachess</span>
         </div>
         <div className="topbar-actions">
           <label className="switch" title="Raccourci : T">
@@ -623,7 +642,7 @@ export default function App() {
             <span className="switch-track" aria-hidden>
               <span className="switch-thumb" />
             </span>
-            <span>{testMode ? 'Mode test' : 'Conseils'}</span>
+            <span className="switch-label">{testMode ? 'Mode test' : 'Conseils'}</span>
           </label>
           <button className="btn ghost profile-btn" onClick={() => setShowProfile(true)} title="Profil et historique">
             <span className="avatar sm" aria-hidden>
@@ -649,9 +668,9 @@ export default function App() {
         </div>
       </header>
 
-      <main className="layout">
+      <main className="layout" ref={layoutRef}>
         <div className="board-col">
-          <div className="board-wrap" ref={boardWrap}>
+          <div className="board-wrap">
             <div className="board-stack">
             {strip(orientation === 'white' ? 'b' : 'w')}
             <div className="board-inner">
@@ -692,8 +711,8 @@ export default function App() {
                   onSquareRightClick={toggleMark}
                   customDarkSquareStyle={{ backgroundColor: 'var(--sq-dark)' }}
                   customLightSquareStyle={{ backgroundColor: 'var(--sq-light)' }}
-                  customBoardStyle={{ borderRadius: '6px', overflow: 'hidden' }}
-                  customNotationStyle={{ fontSize: '11px', fontWeight: 600 }}
+                  customBoardStyle={{ borderRadius: '10px', overflow: 'hidden' }}
+                  customNotationStyle={{ fontSize: '11px', fontWeight: 600, fontFamily: 'var(--ui)' }}
                   customPieces={customPieces}
                 />
                 {promotion && (
@@ -719,7 +738,58 @@ export default function App() {
             </div>
           </div>
 
-          <nav className="controls" style={{ maxWidth: boardWidth + EVAL_GUTTER }} aria-label="Navigation dans les coups">
+        </div>
+
+        <aside className="side">
+
+          {replay && (
+            <p className="side-note">
+              Relecture de la partie du {new Date(replay.date).toLocaleDateString('fr-FR')} contre Stockfish{' '}
+              {replay.elo} : l’entraîneur réanalyse chaque coup.{' '}
+              <button className="link" onClick={() => setShowNewGame(true)}>
+                Nouvelle partie
+              </button>
+            </p>
+          )}
+          {!atTip && started && !gameOver && !replay && (
+            <p className="side-note">
+              Vous consultez un coup passé. {viewTurn === playerColor ? 'Jouez ici pour essayer une autre suite, ou ' : ''}
+              <button className="link" onClick={() => goto(moves.length)}>
+                revenez à la position actuelle
+              </button>
+              .
+            </p>
+          )}
+          <CoachPanel
+            review={currentReview}
+            pending={pending > 0}
+            viewPly={view}
+            playerColor={playerColor}
+            testMode={testMode}
+            isPlayerTurn={isPlayerTurn}
+            aiThinking={aiThinking}
+            started={started}
+            gameOver={gameOver}
+            showBest={showBest}
+            onToggleBest={() => setShowBest((s) => !s)}
+            awaitingAnalysis={awaitingAnalysis}
+            countdown={countdown}
+            onTakeback={takeback}
+            onRelease={() => releaseRef.current?.()}
+            onHold={() => holdRef.current?.()}
+          />
+          <section className="moves-card" aria-label="Coups joués">
+            <header className="moves-head">
+              <h2>Coups</h2>
+              {started && moves.length > 0 && (
+                <span className="muted small">
+                  {Math.ceil(moves.length / 2)} coup{moves.length > 2 ? 's' : ''}
+                </span>
+              )}
+            </header>
+            <MoveList moves={moves} reviews={reviews} viewPly={view} testMode={testMode} onSelect={goto} />
+          </section>
+          <nav className="controls" aria-label="Navigation dans les coups">
             <div className="nav-group pill">
               <button className="icon-btn" onClick={() => goto(0)} disabled={view === 0} aria-label="Début de partie">
                 <IconFirst />
@@ -778,56 +848,6 @@ export default function App() {
               </button>
             </div>
           </nav>
-          {replay && (
-            <p className="branch-hint">
-              Relecture de la partie du {new Date(replay.date).toLocaleDateString('fr-FR')} contre Stockfish{' '}
-              {replay.elo} : l’entraîneur réanalyse chaque coup.{' '}
-              <button className="link" onClick={() => setShowNewGame(true)}>
-                Nouvelle partie
-              </button>
-            </p>
-          )}
-          {!atTip && started && !gameOver && !replay && (
-            <p className="branch-hint">
-              Vous consultez un coup passé. {viewTurn === playerColor ? 'Jouez ici pour essayer une autre suite, ou ' : ''}
-              <button className="link" onClick={() => goto(moves.length)}>
-                revenez à la position actuelle
-              </button>
-              .
-            </p>
-          )}
-        </div>
-
-        <aside className="side">
-          <CoachPanel
-            review={currentReview}
-            pending={pending > 0}
-            viewPly={view}
-            playerColor={playerColor}
-            testMode={testMode}
-            isPlayerTurn={isPlayerTurn}
-            aiThinking={aiThinking}
-            started={started}
-            gameOver={gameOver}
-            showBest={showBest}
-            onToggleBest={() => setShowBest((s) => !s)}
-            awaitingAnalysis={awaitingAnalysis}
-            countdown={countdown}
-            onTakeback={takeback}
-            onRelease={() => releaseRef.current?.()}
-            onHold={() => holdRef.current?.()}
-          />
-          <section className="moves-card" aria-label="Coups joués">
-            <header className="moves-head">
-              <h2>Coups</h2>
-              {started && moves.length > 0 && (
-                <span className="muted small">
-                  {Math.ceil(moves.length / 2)} coup{moves.length > 2 ? 's' : ''}
-                </span>
-              )}
-            </header>
-            <MoveList moves={moves} reviews={reviews} viewPly={view} testMode={testMode} onSelect={goto} />
-          </section>
           {gameOver && (
             <div className="gameover">
               <strong>{gameOver}</strong>

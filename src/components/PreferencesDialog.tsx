@@ -48,22 +48,27 @@ export function PreferencesDialog({ prefs, onChange, onClose }: Props) {
 
         <fieldset>
           <legend>Thème de l’interface</legend>
-          <div className="theme-grid">
-            {UI_THEMES.map((t) => (
-              <button
-                key={t.id}
-                className={`theme-opt ${prefs.ui === t.id ? 'on' : ''}`}
-                onClick={() => set('ui', t.id)}
-                aria-pressed={prefs.ui === t.id}
-              >
-                <span className="ui-swatch" style={{ background: t.swatch[0] }}>
-                  <span style={{ background: t.swatch[1] }} />
-                  <span style={{ background: t.swatch[2] }} />
-                </span>
-                {t.label}
-              </button>
-            ))}
-          </div>
+          {(['light', 'dark'] as const).map((scheme) => (
+            <div key={scheme} className="theme-group">
+              <p className="theme-group-label">{scheme === 'light' ? 'Clairs' : 'Sombres'}</p>
+              <div className="theme-grid">
+                {UI_THEMES.filter((t) => t.vars['--scheme'] === scheme).map((t) => (
+                  <button
+                    key={t.id}
+                    className={`theme-opt ${prefs.ui === t.id ? 'on' : ''}`}
+                    onClick={() => set('ui', t.id)}
+                    aria-pressed={prefs.ui === t.id}
+                  >
+                    <span className="ui-swatch" style={{ background: t.swatch[0] }}>
+                      <span style={{ background: t.swatch[1] }} />
+                      <span style={{ background: t.swatch[2] }} />
+                    </span>
+                    {t.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ))}
         </fieldset>
 
         <fieldset>

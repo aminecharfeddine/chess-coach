@@ -29,7 +29,7 @@ export function ReviewDialog({ report, reviews, result, playerColor, elo, pendin
         <header className="review-head">
           <div>
             <h2 id="rv-title">Bilan de la partie</h2>
-            <p className="muted">{result ?? 'Partie en cours'} Adversaire : Stockfish {elo}.</p>
+            <p className="muted">Contre Stockfish {elo}. {result ?? 'Partie en cours.'}</p>
           </div>
           <button className="icon-btn" onClick={onClose} aria-label="Fermer le bilan">
             ✕
