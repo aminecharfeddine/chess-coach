@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
 import { CLASS_INFO, type MoveReview } from '../lib/coach';
 import { formatEval } from '../lib/evaluation';
-import { toFrenchSan } from '../lib/chessUtils';
+import { readableMove, toFrenchSan } from '../lib/chessUtils';
+import { pieceUrl } from '../lib/themes';
+import type { Move } from 'chess.js';
 import { IconUndo } from './Icons';
 
 interface Props {
@@ -22,6 +24,31 @@ interface Props {
   onRelease: () => void;
   onHold: () => void;
   onNewGame: () => void;
+  /** Dossier du jeu de pièces affiché (pour les icônes) */
+  pieceFolder: string;
+  /** Message quand le coup affiché n'est pas commenté (réglage de la partie) */
+  silentNote: string | null;
+  /** Revenir sur le coup commenté quand on affiche un commentaire précédent */
+  onJump: (ply: number) => void;
+}
+
+/** Bloc « coup lisible » : icône de la pièce, départ → arrivée, détails, notation en petit. */
+function MoveCard({ m, folder, tone }: { m: Move; folder: string; tone: 'best' | 'played' | 'chance' }) {
+  const r = readableMove(m);
+  return (
+    <div className={`movecard ${tone}`}>
+      <img className="movecard-piece" src={pieceUrl(folder, m.color + m.piece.toUpperCase())} alt="" />
+      <div className="movecard-text">
+        <span className="movecard-title">{r.title}</span>
+        <span className="movecard-details">
+          {r.details.length > 0 && <span className="movecard-detail">{r.details.join(', ')}</span>}
+          <span className="movecard-san" title="Notation utilisée dans la liste des coups">
+            Notation : {toFrenchSan(m.san)}
+          </span>
+        </span>
+      </div>
+    </div>
+  );
 }
 
 /** Bandeau affiché entre votre coup et la réponse de l'IA. */
@@ -131,6 +158,12 @@ export function CoachPanel(p: Props) {
         <p className="muted">Astuce : ← → pour naviguer, T pour basculer en mode test.</p>
       </div>
     );
+  } else if (p.silentNote) {
+    body = (
+      <div className="coach-empty">
+        <p className="coach-voice">{p.silentNote}</p>
+      </div>
+    );
   } else if (!p.review) {
     body = (
       <div className="coach-empty">
@@ -145,6 +178,8 @@ export function CoachPanel(p: Props) {
     const mine = r.color === p.playerColor;
     const badMove = ['inaccuracy', 'mistake', 'blunder'].includes(r.classification);
     const oppErred = !mine && ['mistake', 'blunder'].includes(r.classification);
+    // Commentaire d'un coup précédent (le coup adverse affiché n'est pas commenté)
+    const isCurrent = r.ply === p.viewPly - 1;
     body = (
       <div className="coach-review" key={r.ply}>
         <div className="coach-head">
@@ -156,8 +191,7 @@ export function CoachPanel(p: Props) {
               {info.label}
             </div>
             <div className="coach-move">
-              {mine ? 'Votre coup' : 'Adversaire'} :{' '}
-              <strong>{toFrenchSan(r.san)}</strong>
+              {mine ? 'Votre coup' : 'Adversaire'} : <strong>{readableMove(r.move).title}</strong>
             </div>
           </div>
           <div className="coach-delta" title="Évaluation avant → après">
@@ -167,16 +201,30 @@ export function CoachPanel(p: Props) {
 
         <p className="coach-voice">{r.explanation}</p>
 
-        {badMove && r.bestSan && (
+        {badMove && r.bestMove && (
           <div className="alt">
-            <div className="alt-row">
-              <span className="muted">Meilleur coup</span>
-              <strong className="alt-move">{toFrenchSan(r.bestSan)}</strong>
-              <button className="link" onClick={p.onToggleBest} aria-pressed={p.showBest}>
-                {p.showBest ? 'Masquer la flèche' : 'Voir sur l’échiquier'}
-              </button>
+            <div className="alt-head">
+              <span>{mine ? 'Il fallait jouer' : 'Meilleur coup'}</span>
+              {isCurrent ? (
+                <button className="link" onClick={p.onToggleBest} aria-pressed={p.showBest}>
+                  {p.showBest ? 'Masquer la flèche' : 'Montrer sur l’échiquier'}
+                </button>
+              ) : (
+                <button className="link" onClick={() => p.onJump(r.ply + 1)}>
+                  Revoir sur l’échiquier
+                </button>
+              )}
             </div>
-            {r.bestLine && <div className="alt-line">{r.bestLine}</div>}
+            <MoveCard m={r.bestMove} folder={p.pieceFolder} tone="best" />
+            {isCurrent && p.showBest && (
+              <p className="alt-hint">La flèche verte sur l’échiquier montre ce coup.</p>
+            )}
+            {r.bestLine && (
+              <details className="alt-line">
+                <summary>Suite prévue par Stockfish</summary>
+                {r.bestLine}
+              </details>
+            )}
           </div>
         )}
 
@@ -189,9 +237,10 @@ export function CoachPanel(p: Props) {
                   Révéler
                 </button>
               ) : (
-                <strong className="alt-move">{r.replyLine.split(' ').slice(0, 2).join(' ')}</strong>
+                null
               )}
             </div>
+            {reveal && r.replyMove && <MoveCard m={r.replyMove} folder={p.pieceFolder} tone="chance" />}
           </div>
         )}
       </div>

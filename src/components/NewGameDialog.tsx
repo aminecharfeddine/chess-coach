@@ -7,6 +7,9 @@ export interface GameSettings {
   depth: number;
   /** Conseils de l'entraîneur pendant la partie (sinon mode test) */
   coach: boolean;
+  /** Commenter mes coups / ceux de l'adversaire (si l'entraîneur est actif) */
+  commentMine: boolean;
+  commentOpp: boolean;
 }
 
 export const DEPTHS = [
@@ -94,11 +97,38 @@ export function NewGameDialog({ initial, canCancel, onStart, onCancel }: Props) 
               Sans entraîneur
             </button>
           </div>
-          <p className="muted small">
-            {s.coach
-              ? 'Chaque coup est commenté, avec la barre d’évaluation et le meilleur coup.'
-              : 'Mode test : ni évaluation ni conseils pendant la partie. Le bilan reste disponible à la fin.'}
-          </p>
+          {s.coach ? (
+            <div className="checks">
+              <label className="check">
+                <input
+                  type="checkbox"
+                  checked={s.commentMine !== false}
+                  onChange={(e) => setS({ ...s, commentMine: e.target.checked })}
+                />
+                <span className="check-box" aria-hidden />
+                <span>
+                  Commenter mes coups
+                  <small>Qualité du coup, explication et meilleur coup à jouer</small>
+                </span>
+              </label>
+              <label className="check">
+                <input
+                  type="checkbox"
+                  checked={s.commentOpp !== false}
+                  onChange={(e) => setS({ ...s, commentOpp: e.target.checked })}
+                />
+                <span className="check-box" aria-hidden />
+                <span>
+                  Commenter les coups de l’adversaire
+                  <small>Repérer ses erreurs et comment en profiter</small>
+                </span>
+              </label>
+            </div>
+          ) : (
+            <p className="muted small">
+              Mode test : ni évaluation ni conseils pendant la partie. Le bilan reste disponible à la fin.
+            </p>
+          )}
         </fieldset>
 
         <fieldset>

@@ -49,14 +49,23 @@ const STRIP_H = 2 * 38 + 2 * 8; // deux bandeaux joueurs (haut + bas) et leurs e
 const SETTINGS_KEY = 'eldrachess.settings';
 const TESTMODE_KEY = 'eldrachess.testMode';
 
+const DEFAULT_SETTINGS: GameSettings = {
+  elo: 1200,
+  color: 'w',
+  depth: 16,
+  coach: true,
+  commentMine: true,
+  commentOpp: true,
+};
+
 function loadSettings(): GameSettings {
   try {
     const raw = localStorage.getItem(SETTINGS_KEY);
-    if (raw) return { elo: 1200, color: 'w', depth: 16, coach: true, ...JSON.parse(raw) };
+    if (raw) return { ...DEFAULT_SETTINGS, ...JSON.parse(raw) };
   } catch {
     /* stockage indisponible */
   }
-  return { elo: 1200, color: 'w', depth: 16, coach: true };
+  return DEFAULT_SETTINGS;
 }
 
 
@@ -220,7 +229,30 @@ export default function App() {
     [moves, analyses, playerColor],
   );
   const report = useMemo(() => buildReport(reviews, playerColor), [reviews, playerColor]);
-  const currentReview = view > 0 ? reviews[view - 1] : null;
+  // Commentaires affichés selon les réglages de la partie (mes coups / coups adverses)
+  const commentMine = settings.commentMine !== false;
+  const commentOpp = settings.commentOpp !== false;
+  const isCommented = (r: MoveReview | null) => !!r && (r.color === playerColor ? commentMine : commentOpp);
+  const viewedMove = view > 0 ? moves[view - 1] : null;
+  const currentReview = view > 0 && isCommented(reviews[view - 1]) ? reviews[view - 1] : null;
+  // Si le coup adverse n'est pas commenté, on garde affiché le commentaire de mon coup précédent
+  const panelReview =
+    currentReview ??
+    (viewedMove && viewedMove.color !== playerColor && !commentOpp && commentMine && view >= 2
+      ? reviews[view - 2]
+      : null);
+  const silentNote =
+    !viewedMove || currentReview || panelReview
+      ? null
+      : viewedMove.color === playerColor
+        ? commentMine
+          ? null
+          : 'Vos coups ne sont pas commentés dans cette partie.'
+        : commentOpp
+          ? null
+          : commentMine
+            ? null
+            : 'Les coups ne sont pas commentés dans cette partie. L’évaluation reste affichée à gauche.';
 
   // --- Coup de l'IA ---
   // Après un coup du joueur (conseils actifs), l'IA attend que ce coup soit analysé,
@@ -228,7 +260,7 @@ export default function App() {
   const tipMove = moves[moves.length - 1];
   const lastIsPlayer = !!tipMove && tipMove.color === playerColor;
   const lastReviewReady = lastIsPlayer && !!reviews[moves.length - 1];
-  const needPause = lastIsPlayer && !testMode && prefs.pause !== 0;
+  const needPause = lastIsPlayer && !testMode && commentMine && prefs.pause !== 0;
   const aiToMove = started && !gameOver && game.turn() === aiColor;
   const awaitingAnalysis = aiToMove && needPause && !lastReviewReady;
 
@@ -762,7 +794,10 @@ export default function App() {
             </p>
           )}
           <CoachPanel
-            review={currentReview}
+            review={panelReview}
+            pieceFolder={findPieces(prefs.pieces).folder ?? 'cburnett'}
+            silentNote={silentNote}
+            onJump={goto}
             pending={pending > 0}
             viewPly={view}
             playerColor={playerColor}
@@ -789,7 +824,13 @@ export default function App() {
                 </span>
               )}
             </header>
-            <MoveList moves={moves} reviews={reviews} viewPly={view} testMode={testMode} onSelect={goto} />
+            <MoveList
+              moves={moves}
+              reviews={reviews.map((r) => (isCommented(r) ? r : null))}
+              viewPly={view}
+              testMode={testMode}
+              onSelect={goto}
+            />
           </section>
           <nav className="controls" aria-label="Navigation dans les coups">
             <div className="nav-group pill">

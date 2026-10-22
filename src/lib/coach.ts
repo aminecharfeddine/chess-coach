@@ -13,6 +13,7 @@ import {
   pieceWithArticle,
   playUciLine,
   toFrenchSan,
+  moveInWords,
   type Phase,
 } from './chessUtils';
 
@@ -73,6 +74,10 @@ export const THEME_INFO: Record<Theme, { label: string; advice: string }> = {
 
 export interface MoveReview {
   ply: number; // index du coup (0 = premier demi-coup)
+  /** Coup joué et meilleur coup, en objets complets (pièce, cases…) */
+  move: Move;
+  bestMove: Move | null;
+  replyMove: Move | null;
   color: 'w' | 'b';
   san: string;
   uci: string;
@@ -183,8 +188,9 @@ export function reviewMove(
   const themes: Theme[] = [];
   const parts: string[] = [];
   const phase = gamePhase(fenBefore, ply);
-  const sanFr = toFrenchSan(move.san);
-  const bestFr = bestSan ? toFrenchSan(bestSan) : null;
+  const sanFr = moveInWords(move);
+  const bestMoveObj = bestUci ? playUciLine(fenBefore, [bestUci], 1)[0] : undefined;
+  const bestFr = bestMoveObj ? moveInWords(bestMoveObj) : null;
   const you = isPlayer;
 
   const matStart = materialBalance(fenBefore) * (color === 'w' ? 1 : -1);
@@ -221,11 +227,11 @@ export function reviewMove(
       const who = you ? pieceWithArticle(piece, 'votre') : pieceWithArticle(piece, 'le');
       if (justMoved) {
         parts.push(
-          `${cap(who)} ${you && move.piece === piece ? 'que vous venez de jouer ' : ''}en ${move.to} n’est pas suffisamment défendu${piece === 'q' || piece === 'r' ? 'e' : ''} : après ${toFrenchSan(capture.san)}, ${you ? 'vous perdez' : 'les ' + sideName(color) + ' perdent'} ${materialLabel(lost)}.`,
+          `${cap(who)} ${you && move.piece === piece ? 'que vous venez de jouer ' : ''}en ${move.to} n’est pas suffisamment défendu${piece === 'q' || piece === 'r' ? 'e' : ''} : après la prise en ${capture.to}, ${you ? 'vous perdez' : 'les ' + sideName(color) + ' perdent'} ${materialLabel(lost)}.`,
         );
       } else {
         parts.push(
-          `Après ${sanFr}, ${who} en ${capture.to} est en prise : ${toFrenchSan(capture.san)}. Au total, ${you ? 'vous perdez' : 'les ' + sideName(color) + ' perdent'} ${materialLabel(lost)}.`,
+          `Après ${sanFr}, ${who} en ${capture.to} est en prise. Au total, ${you ? 'vous perdez' : 'les ' + sideName(color) + ' perdent'} ${materialLabel(lost)}.`,
         );
       }
     } else {
@@ -274,7 +280,7 @@ export function reviewMove(
     );
     if (replyUci && classification !== 'inaccuracy') {
       const reply = playUciLine(fenAfter, [replyUci], 1)[0];
-      if (reply) parts.push(`L’adversaire peut répondre ${toFrenchSan(reply.san)}.`);
+      if (reply) parts.push(`L’adversaire peut répondre avec ${moveInWords(reply)}.`);
     }
   } else {
     // Bons coups
@@ -289,16 +295,19 @@ export function reviewMove(
     } else if (classification === 'excellent') {
       parts.push(`Excellent coup, quasiment aussi fort que ${bestFr ?? 'le choix du moteur'}.`);
     } else {
-      parts.push(`Bon coup. ${bestFr ? `${bestFr} était légèrement plus précis.` : ''}`.trim());
+      parts.push(`Bon coup. ${bestFr ? `${cap(bestFr)} était légèrement plus précis.` : ''}`.trim());
     }
     if (evalAfterTxt) parts.push(evalAfterTxt);
   }
 
   const info = CLASS_INFO[classification];
-  const title = `${sanFr} : ${info.noun}`;
+  const title = `${toFrenchSan(move.san)} : ${info.noun}`;
 
   return {
     ply,
+    move,
+    bestMove: bestMoveObj ?? null,
+    replyMove: replyUci ? (playUciLine(fenAfter, [replyUci], 1)[0] ?? null) : null,
     color,
     san: move.san,
     uci,

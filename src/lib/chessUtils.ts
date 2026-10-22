@@ -118,3 +118,38 @@ export const PHASE_LABEL: Record<Phase, string> = {
 };
 
 export const turnOf = (fen: string) => fen.split(' ')[1] as 'w' | 'b';
+
+const PIECE_CAP: Record<PieceSymbol, string> = {
+  p: 'Pion',
+  n: 'Cavalier',
+  b: 'Fou',
+  r: 'Tour',
+  q: 'Dame',
+  k: 'Roi',
+};
+
+/** « la dame », « le cavalier »… */
+const withLe = (p: PieceSymbol) => pieceWithArticle(p, 'le');
+
+/**
+ * Coup lisible sans connaître la notation : « Dame d1 → g3 »,
+ * avec les détails utiles (prise, échec, promotion, roque).
+ */
+export function readableMove(m: Move): { title: string; details: string[] } {
+  if (m.san.startsWith('O-O-O')) return { title: 'Grand roque', details: ['le roi va en ' + m.to + ', la tour le protège'] };
+  if (m.san.startsWith('O-O')) return { title: 'Petit roque', details: ['le roi va en ' + m.to + ', la tour le protège'] };
+  const details: string[] = [];
+  if (m.captured) details.push(`prend ${withLe(m.captured as PieceSymbol)}`);
+  if (m.promotion) details.push(`promotion en ${PIECE_NAME[m.promotion as PieceSymbol]}`);
+  if (m.san.includes('#')) details.push('échec et mat');
+  else if (m.san.includes('+')) details.push('échec au roi');
+  return { title: `${PIECE_CAP[m.piece]} ${m.from} → ${m.to}`, details };
+}
+
+/** Pour une phrase : « la dame en g3 », « le cavalier qui prend en c4 », « le petit roque ». */
+export function moveInWords(m: Move): string {
+  if (m.san.startsWith('O-O-O')) return 'le grand roque';
+  if (m.san.startsWith('O-O')) return 'le petit roque';
+  const who = withLe(m.piece);
+  return m.captured ? `${who} qui prend en ${m.to}` : `${who} en ${m.to}`;
+}

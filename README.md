@@ -13,6 +13,7 @@ Application web d’entraînement aux échecs : jouez contre Stockfish au niveau
 - **Temps de lecture** : après votre coup, l’IA attend que l’analyse s’affiche, puis 3 s, 6 s ou votre clic (réglable). Pendant ce temps : reprendre le coup, mettre en pause ou jouer tout de suite (Espace).
 - **Thèmes** (bouton ⚙) : 16 thèmes d’interface (9 clairs, 7 sombres), 15 échiquiers et 14 jeux de pièces, mémorisés dans le navigateur.
 - **Profil et historique** (bouton Profil) : 10 dernières parties rejouables en lecture automatique avec les commentaires de l’entraîneur, statistiques cumulées (victoires/nulles/défaites, précision moyenne et son évolution, répartition des coups, séries, meilleure victoire), export PGN, sauvegarde et import du profil. Stocké dans le navigateur, sans base de données.
+- **Commentaires au choix** : dans Nouvelle partie, commenter mes coups et/ou ceux de l’adversaire. Le meilleur coup est décrit en clair (« Dame h5 → c5, prend le pion ») avec l’icône de la pièce, la notation en petit.
 - **Mode test** (interrupteur ou touche T) : masque instantanément évaluation, conseils et annotations ; l’analyse continue en arrière-plan.
 - **Bilan final** : précision des deux camps, courbe d’évaluation cliquable, répartition des coups, moments clés à revoir, thèmes récurrents, précision par phase de jeu et axes de progression.
 
